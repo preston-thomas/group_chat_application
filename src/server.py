@@ -14,13 +14,20 @@ clients = []
 
 def listen_for_messages(client, username):
     while True:
+        try:
+            response = client.recv(2048).decode("utf-8")
+            if response != '':
+                message = username + ": " + response
+                send_messages_to_all_clients(message)
+            else:
+                print(f"Empty message from {username}. Closing connection.")
+                client.close()
+                break
+        except:
+            print(f"{username} has disconnected.")
+            client.close()
+            break
 
-        response = client.recv(2048).decode("utf-8")
-        if response != '':
-            message = username + ": " + response
-            send_messages_to_all_clients(message)
-        else:
-            print("Client response empty.")
 
 def send_message_to_client(client, message):
     client.sendall(message.encode("utf-8"))
