@@ -9,8 +9,9 @@ import threading
 
 # Server Configuration
 HOST = '127.0.0.1'
-PORT = 12345
+PORT = 8000
 clients = []
+
 
 # Broadcast message to all clients
 def broadcast(message, sender_socket):
