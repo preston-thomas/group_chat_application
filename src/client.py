@@ -1,98 +1,127 @@
+"""
+Preston Thomas, Evan Gronewold
+https://realpython.com/python-gui-tkinter/
+https://www.pythonguis.com/tkinter-tutorial/
+https://realpython.com/python-sockets/ 
+"""
+
 import socket
 import threading
 import tkinter as tk
-from tkinter import scrolledtext
-from tkinter import messagebox
-# Preston Thomas, Evan Gronewold
-# https://realpython.com/python-gui-tkinter/
-# https://www.pythonguis.com/tkinter-tutorial/
-# https://realpython.com/python-sockets/ 
+from tkinter import scrolledtext, simpledialog, messagebox
+import queue
 
-HOST = "127.0.0.1"
-PORT = 8000
+class ChatClient:
+    def __init__(self, master):
+        self.master = master
+        self.master.title("Slack Lite")
+        
+        # Create a thread-safe queue for messages from the server
+        self.chat_queue = queue.Queue()
+        
+        # Chat display: a scrolled text widget for conversation
+        self.chat_display = scrolledtext.ScrolledText(master, state='disabled', wrap='word', width=50, height=20)
+        self.chat_display.grid(row=0, column=0, columnspan=2, padx=10, pady=10)
+        # Configure a tag for styling the username (blue, bold text)
+        self.chat_display.tag_config('username', foreground='blue', font=('TkDefaultFont', 10, 'bold'))
+        
+        # Input area: a text widget for multi-line message entry
+        self.input_text = tk.Text(master, height=3, wrap='word')
+        self.input_text.grid(row=1, column=0, padx=10, pady=5, sticky='ew')
+        
+        # Send button to dispatch the message
+        self.send_button = tk.Button(master, text="Send", command=self.send_message)
+        self.send_button.grid(row=1, column=1, padx=10, pady=5)
+        master.grid_columnconfigure(0, weight=1)
+        
+        # Set up the network connection
+        self.host = '127.0.0.1'  # Must match server host address
+        self.port = 5001         # Must match the server configuration port
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            self.sock.connect((self.host, self.port))
+        except Exception as e:
+            messagebox.showerror("Connection Error", f"Could not connect to server: {e}")
+            master.quit()
+            return
 
-client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # Prompt for username using a simple dialog
+        self.username = simpledialog.askstring("Username", "Enter your username:", parent=master)
+        if not self.username:
+            self.username = "Anonymous"
 
+        # Start a thread to continuously receive messages from the server
+        self.running = True
+        self.recv_thread = threading.Thread(target=self.receive_messages, daemon=True)
+        self.recv_thread.start()
 
-def add_message(message):
-    message_box.config(state=tk.NORMAL)
-    message_box.insert(tk.END, message + '\n')
-    message_box.config(state=tk.DISABLED)
+        # Periodically update the chat display with new messages
+        self.master.after(100, self.update_chat_display)
+        
+        # Bind the window closing event to handle a graceful shutdown
+        self.master.protocol("WM_DELETE_WINDOW", self.on_closing)
 
-def connect():
-    try: 
-        client.connect((HOST, PORT))
-        print("Connected to the server.")
-        add_message("[SERVER] Successfully connected to the server")
-    except:
-        messagebox.showerror("Error", "Unable to connect to the server.")
-    
-    username = username_textbox.get()
-    if username != '':
-        client.sendall(username.encode("utf-8"))
-    else:
-        messagebox.showerror("Error", "Invalid Username")
-    
-    threading.Thread(target=listen_for_messages_from_server, args=(client, )).start()
+    def send_message(self):
+        # Retrieve the text from the input area and clear it
+        msg = self.input_text.get("1.0", tk.END).strip()
+        self.input_text.delete("1.0", tk.END)
+        if msg:
+            full_msg = f"{self.username}: {msg}"
+            try:
+                self.sock.send(full_msg.encode('utf-8'))
+            except Exception as e:
+                self.chat_queue.put(f"Error sending message: {e}")
+                return
+            # Immediately display the message locally
+            self.chat_display.config(state='normal')
+            self.chat_display.insert(tk.END, f"{self.username}:", 'username')
+            self.chat_display.insert(tk.END, f" {msg}\n")
+            self.chat_display.see(tk.END)
+            self.chat_display.config(state='disabled')
 
+    def receive_messages(self):
+        # Continuously receive messages from the server
+        while self.running:
+            try:
+                data = self.sock.recv(1024)
+                if data:
+                    message = data.decode('utf-8')
+                    self.chat_queue.put(message)
+                else:
+                    # If no data, the connection might have been closed
+                    self.running = False
+                    self.chat_queue.put("Disconnected from server.")
+            except Exception as e:
+                self.chat_queue.put(f"Error receiving message: {e}")
+                self.running = False
 
-def send_message():
-    message = message_textbox.get()
-    if message != '':
-        client.sendall(message.encode("utf-8"))
-        message_textbox.delete(0, tk.END)  # Clear textbox after sending
-    else:
-        messagebox.showerror("Message empty.", "Try Typing Something")
+    def update_chat_display(self):
+        # Process all messages in the queue and update the chat display
+        while not self.chat_queue.empty():
+            msg = self.chat_queue.get_nowait()
+            self.chat_display.config(state='normal')
+            if ':' in msg:
+                # Split on the first colon to separate username from message
+                username, rest = msg.split(':', 1)
+                self.chat_display.insert(tk.END, username + ":", 'username')
+                self.chat_display.insert(tk.END, rest + "\n")
+            else:
+                self.chat_display.insert(tk.END, msg + "\n")
+            self.chat_display.see(tk.END)  # Auto-scroll to the end
+            self.chat_display.config(state='disabled')
+        if self.running:
+            self.master.after(100, self.update_chat_display)
 
-root = tk.Tk()
-root.geometry("600x600")
-root.title("Chat with Friends")
-root.resizable(False, False)
+    def on_closing(self):
+        # Gracefully shut down the connection and close the window
+        self.running = False
+        try:
+            self.sock.close()
+        except:
+            pass
+        self.master.destroy()
 
-root.grid_rowconfigure(0, weight=1)
-root.grid_rowconfigure(1, weight=4)
-root.grid_rowconfigure(2, weight=1)
-
-top_frame = tk.Frame(root, width=600, height=100, bg="grey")
-top_frame.grid(row=0, column=0, sticky=tk.NSEW)
-
-middle_frame = tk.Frame(root, width=600, height=400, bg="white")
-middle_frame.grid(row=1, column=0, sticky=tk.NSEW)
-
-bottom_frame = tk.Frame(root, width=600, height=100, bg="grey")
-bottom_frame.grid(row=2, column=0, sticky=tk.NSEW)
-
-username_label = tk.Label(top_frame, text="Enter Username: ", font=("Arial", 16), bg="black", fg="white")
-username_label.pack(side=tk.LEFT, padx=10, pady=10)
-
-username_textbox = tk.Entry(top_frame, font=("Arial", 16), bg="black", fg="white", width=20)
-username_textbox.pack(side=tk.LEFT)
-
-username_button = tk.Button(top_frame, text="Join Chat", font=("Arial, 18"), bg="blue", fg="white", command=connect)
-username_button.pack(side=tk.LEFT, padx=15)
-
-message_textbox = tk.Entry(bottom_frame, font=("Arial, 16"), bg="grey", fg="white", width=35)
-message_textbox.pack(side=tk.LEFT, padx=10)
-
-message_button = tk.Button(bottom_frame, text="Send", font=("Arial, 18"), bg="blue", fg="white", command=send_message)
-message_button.pack(side=tk.LEFT, padx=10)
-
-message_box = scrolledtext.ScrolledText(middle_frame, font=("Arial", 14), bg="grey", fg="white", width=65, height=25)
-message_box.config(state=tk.DISABLED)
-message_box.pack(side=tk.TOP)
-
-def listen_for_messages_from_server(client):
-    while True:
-        message = client.recv(2048).decode("utf-8")
-        if message != '':
-            username = message.split(":")[0]
-            content = message.split(":")[1]
-            add_message(f"{username}: {content}")
-        else:
-            messagebox.showerror("Error", "Message from server empty.")
-
-def main():
+if __name__ == '__main__':
+    root = tk.Tk()
+    client = ChatClient(root)
     root.mainloop()
-
-if __name__ == "__main__":
-    main()

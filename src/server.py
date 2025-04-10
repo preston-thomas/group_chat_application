@@ -7,70 +7,64 @@ Professor Dulimarta
 import socket
 import threading
 
-# Server Configuration
-HOST = '127.0.0.1'
-PORT = 8000
+# List to maintain active client connections
 clients = []
+clients_lock = threading.Lock()
 
-def listen_for_messages(client, username):
-    while True:
-        try:
-            response = client.recv(2048).decode("utf-8")
-            if response != '':
-                message = username + ": " + response
-                send_messages_to_all_clients(message)
-            else:
-                print(f"Empty message from {username}. Closing connection.")
-                client.close()
+def broadcast(message, sender_socket):
+    """
+    Send a message to all clients except the sender.
+    """
+    with clients_lock:
+        for client in clients:
+            if client != sender_socket:
+                try:
+                    client.send(message.encode('utf-8'))
+                except Exception as e:
+                    print("Error sending to a client:", e)
+
+def handle_client(client_socket, addr):
+    """
+    Handle communication with a single client.
+    """
+    print(f"New connection from {addr}")
+    try:
+        while True:
+            data = client_socket.recv(1024)
+            if not data:  # client disconnected
                 break
-        except:
-            print(f"{username} has disconnected.")
-            client.close()
-            break
-
-
-def send_message_to_client(client, message):
-    client.sendall(message.encode("utf-8"))
-
-# function to send a message to all clients connected to the server 
-def send_messages_to_all_clients(message):
-    for client in clients:
-        send_message_to_client(client[1], message)
-
-
-def handle_client(client):
-    
-    # server will listen to clients and messages sent
-    while True:
-        username = client.recv(2048).decode("utf-8")
-        if username != '':
-            clients.append((username, client))
-            send_messages_to_all_clients(f"{username} has joined the chat.")
-            break
-        else:
-            print("Client Username empty.")
-
-    threading.Thread(target=listen_for_messages, args=(client, username, )).start()
+            message = data.decode('utf-8')
+            print(f"Received from {addr}: {message}")
+            broadcast(message, client_socket)
+    except Exception as e:
+        print(f"Error with client {addr}: {e}")
+    finally:
+        with clients_lock:
+            if client_socket in clients:
+                clients.remove(client_socket)
+        client_socket.close()
+        print(f"Connection closed: {addr}")
 
 def main():
-    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-    try:
-        # bind server to host and a port
-        server.bind((HOST, PORT))
-
-    except:
-        print("Unable to bind the host and port.")
+    host = '127.0.0.1'
+    port = 5001  # Ensure this matches the client configuration
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server_socket.bind((host, port))
+    server_socket.listen(5)
+    print(f"Server listening on {host}:{port}")
     
-    # set our server to listen for connections
-    server.listen()
+    try:
+        while True:
+            client_socket, addr = server_socket.accept()
+            with clients_lock:
+                clients.append(client_socket)
+            t = threading.Thread(target=handle_client, args=(client_socket, addr), daemon=True)
+            t.start()
+    except KeyboardInterrupt:
+        print("Server shutting down.")
+    finally:
+        server_socket.close()
 
-    # have a while loop to keep listening for connections
-    while True:
-        client, address = server.accept()
-        print(f"Connection from {address} successful.")
-        threading.Thread(target=handle_client, args=(client, )).start()
-        print(f"Running server on {HOST}:{PORT}")
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
