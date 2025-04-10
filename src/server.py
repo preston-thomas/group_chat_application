@@ -9,7 +9,7 @@ import threading
 
 # Server Configuration
 HOST = '127.0.0.1'
-PORT = 8000
+PORT = 443
 clients = []
 
 def listen_for_messages(client, username):

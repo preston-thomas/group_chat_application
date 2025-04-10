@@ -3,13 +3,14 @@ import threading
 import tkinter as tk
 from tkinter import scrolledtext
 from tkinter import messagebox
+
 # Preston Thomas, Evan Gronewold
 # https://realpython.com/python-gui-tkinter/
 # https://www.pythonguis.com/tkinter-tutorial/
 # https://realpython.com/python-sockets/ 
 
 HOST = "127.0.0.1"
-PORT = 8000
+PORT = 443
 
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
