@@ -47,7 +47,7 @@ def handle_client(client_socket, addr):
 
 def main():
     host = '127.0.0.1'
-    port = 5001  # Ensure this matches the client configuration
+    port = 5000  # Ensure this matches the client configuration
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server_socket.bind((host, port))

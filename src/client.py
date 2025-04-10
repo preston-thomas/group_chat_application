@@ -36,7 +36,7 @@ class ChatClient:
         
         # Set up the network connection
         self.host = '127.0.0.1'  # Must match server host address
-        self.port = 5001         # Must match the server configuration port
+        self.port = 5000         # Must match the server configuration port
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             self.sock.connect((self.host, self.port))
