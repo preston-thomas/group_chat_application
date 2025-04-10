@@ -15,22 +15,24 @@ class ChatClient:
     def __init__(self, master):
         self.master = master
         self.master.title("Slack Lite")
+        self.master.configure(bg='black')
+        self.master.geometry('800x600')
         
         # Create a thread-safe queue for messages from the server
         self.chat_queue = queue.Queue()
         
         # Chat display: a scrolled text widget for conversation
-        self.chat_display = scrolledtext.ScrolledText(master, state='disabled', wrap='word', width=50, height=20)
+        self.chat_display = scrolledtext.ScrolledText(master, state='disabled', wrap='word', width=50, height=20, font=('Calibri', 18), background='black', foreground='white')
         self.chat_display.grid(row=0, column=0, columnspan=2, padx=10, pady=10)
         # Configure a tag for styling the username (blue, bold text)
-        self.chat_display.tag_config('username', foreground='blue', font=('TkDefaultFont', 10, 'bold'))
+        self.chat_display.tag_config('username', foreground='lightblue', font=('Calibri', 18, 'bold'))
         
         # Input area: a text widget for multi-line message entry
         self.input_text = tk.Text(master, height=3, wrap='word')
         self.input_text.grid(row=1, column=0, padx=10, pady=5, sticky='ew')
         
         # Send button to dispatch the message
-        self.send_button = tk.Button(master, text="Send", command=self.send_message)
+        self.send_button = tk.Button(master, text="Send", command=self.send_message, background='lightgrey', foreground='black')
         self.send_button.grid(row=1, column=1, padx=10, pady=5)
         master.grid_columnconfigure(0, weight=1)
         
