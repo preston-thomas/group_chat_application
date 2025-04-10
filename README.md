@@ -1,5 +1,5 @@
 # Run Instructions
-* **NOTE: This is assuming you have already fetched the remote repository on the GVSU RDPs
+* **NOTE: This is assuming you have already fetched the remote repository on the GVSU RDPs**
 * VPN into GVSU's network
 * Run the following in the terminal: ssh userid@eos<##>.cis.gvsu.edu
 * CD to the directory where the server.py script is located (example command: cd /cis457/cis457_group_chat/src
