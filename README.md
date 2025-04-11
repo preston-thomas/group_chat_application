@@ -1,3 +1,6 @@
+# Slack Lite
+* Created by: Preston Thomas & Evan Gronewold
+
 # Run Instructions
 * **NOTE: This is assuming you have already fetched the remote repository on the GVSU RDPs**
 * VPN into GVSU's network
